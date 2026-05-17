@@ -37,11 +37,13 @@ puts client.note("cron-jobs-prod")[:plain_body]
 # List your notes.
 client.notes.each { |note| puts "#{note[:filename]}\t#{note[:title]}" }
 
-# Create a new note explicitly (errors if the filename is taken).
-client.create(filename: "research-2026-q2", body: "Initial outline.")
+# Create a note. The API derives the filename from the title — for a
+# note addressable by an exact filename, use append instead.
+created = client.create(title: "Research 2026 Q2", body: "Initial outline.")
+puts created[:filename] # server-derived stream name
 ```
 
-The whole API is four methods: `notes`, `note(filename)`, `create(filename:, body:, title:)`, `append(filename, text)`.
+The whole API is four methods: `notes`, `note(filename)`, `create(title:, body:)`, `append(filename, text)`. `note` and `create` return the note hash directly (no `{ note: … }` wrapper); `notes` returns the array.
 
 ## Errors
 

@@ -13,9 +13,14 @@ require_relative "freshjots/version"
 #   client = Freshjots::Client.new          # reads FRESHJOTS_TOKEN from ENV
 #   client.append("cron-jobs-prod", "backup ok")
 #   client.note("cron-jobs-prod")[:plain_body]
+#   client.create(title: "Deploy log")[:filename]   # server-derived
 #
 # All methods raise Freshjots::ApiError on non-2xx, with code/status/details
 # from the API's stable error envelope.
+#
+# Response shapes: GET /notes is the only endpoint that wraps its payload
+# ({ notes: [...] }). show / show-by-filename / create return the note
+# hash at the TOP LEVEL — there is no { note: ... } wrapper.
 module Freshjots
   class ApiError < StandardError
     attr_reader :status, :code, :details
@@ -39,14 +44,26 @@ module Freshjots
       request(:get, "/notes")[:notes]
     end
 
+    # show-by-filename renders the serializer at the top level (no
+    # { note: ... } wrapper), so the response *is* the note hash.
     def note(filename)
-      request(:get, "/notes/by-filename/#{escape(filename)}")[:note]
+      request(:get, "/notes/by-filename/#{escape(filename)}")
     end
 
-    def create(filename:, body: "", title: nil)
-      payload = { note: { filename: filename, plain_body: body, format: "plain" } }
-      payload[:note][:title] = title if title
-      request(:post, "/notes", payload)[:note]
+    # Create a note. The API permits note[title, plain_body, format, ...]
+    # — NOT filename: the server DERIVES the filename from the title. For
+    # a note addressable by an exact, caller-chosen filename, use append
+    # (the by-filename endpoint creates it with that exact name on first
+    # call). Returns the created note hash (top level); read [:filename]
+    # for the server-derived stream name.
+    def create(title:, body: "")
+      if title.nil? || title.to_s.empty?
+        raise ArgumentError,
+              "create requires a title — the API derives the filename from it. " \
+              "For a note addressable by an exact filename, use append."
+      end
+      payload = { note: { title: title, plain_body: body, format: "plain" } }
+      request(:post, "/notes", payload)
     end
 
     def append(filename, text)
