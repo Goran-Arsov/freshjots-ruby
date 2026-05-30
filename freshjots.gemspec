@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email       = ["arsphy@yahoo.com"]
 
   spec.summary     = "Tiny Ruby client for the Fresh Jots API"
-  spec.description = "Append-only notebooks for cron jobs, deploy scripts, and bots. Wraps the four-endpoint plain-text REST API at freshjots.com/api/v1."
+  spec.description = "Append-only notebooks for cron jobs, deploy scripts, and bots. Wraps the plain-text REST API at freshjots.com/api/v1."
   spec.homepage    = "https://github.com/Goran-Arsov/freshjots-ruby"
   spec.license     = "MIT"
 

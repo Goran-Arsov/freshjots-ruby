@@ -40,14 +40,29 @@ module Freshjots
       @token, @base_url = token, base_url
     end
 
-    def notes
-      request(:get, "/notes")[:notes]
+    # List notes (summary projection). Keyword options mirror the API
+    # query params: sort (created|updated|appended, default updated),
+    # folder_id (a folder id, or "none" for un-foldered notes only), and
+    # limit/offset for pagination (the server caps a page at 200).
+    def notes(sort: nil, folder_id: nil, limit: nil, offset: nil)
+      query = {}
+      query[:sort]      = sort      if sort
+      query[:folder_id] = folder_id unless folder_id.nil? || folder_id.to_s.empty?
+      query[:limit]     = limit     unless limit.nil?
+      query[:offset]    = offset    unless offset.nil?
+      path = query.empty? ? "/notes" : "/notes?#{URI.encode_www_form(query)}"
+      request(:get, path)[:notes]
     end
 
     # show-by-filename renders the serializer at the top level (no
     # { note: ... } wrapper), so the response *is* the note hash.
     def note(filename)
       request(:get, "/notes/by-filename/#{escape(filename)}")
+    end
+
+    # Full note by numeric id (GET /notes/:id) — top-level serializer.
+    def note_by_id(id)
+      request(:get, "/notes/#{escape(id)}")
     end
 
     # Create a note. The API permits note[title, plain_body, format, ...]
@@ -71,7 +86,49 @@ module Freshjots
       true
     end
 
+    # Delete a note. Accepts a numeric id or a filename (resolved to its
+    # id via the by-filename lookup). Locked (append-only) notes are
+    # refused by the API with note_locked. Returns true on success.
+    def delete(id_or_filename)
+      request(:delete, "/notes/#{resolve_note_id(id_or_filename)}")
+      true
+    end
+
+    # Move a note into a folder. `folder` may be a folder id, a folder
+    # name (resolved via /folders), or nil / "none" / "root" to send the
+    # note back to the root.
+    def move(id_or_filename, folder: nil)
+      id = resolve_note_id(id_or_filename)
+      request(:post, "/notes/#{id}/move", { folder_id: resolve_folder_id(folder) })
+    end
+
+    # List folders ({ folders: [...] } envelope).
+    def folders
+      request(:get, "/folders")[:folders]
+    end
+
     private
+
+    # A note reference is either a numeric id (used as-is) or a
+    # filename/title resolved to an id via the by-filename lookup.
+    def resolve_note_id(value)
+      return value if value.is_a?(Integer) || value.to_s.match?(/\A\d+\z/)
+
+      note(value.to_s)[:id]
+    end
+
+    # A folder reference resolves to an id (or nil for the root). Names go
+    # through /folders; an unknown or ambiguous name is an ArgumentError.
+    def resolve_folder_id(value)
+      return nil if value.nil? || %w[none root null].include?(value.to_s.downcase)
+      return value if value.is_a?(Integer) || value.to_s.match?(/\A\d+\z/)
+
+      matches = folders.select { |f| f[:name] == value.to_s }
+      raise ArgumentError, "no folder named '#{value}'" if matches.empty?
+      raise ArgumentError, "ambiguous folder name '#{value}' — use its id" if matches.size > 1
+
+      matches.first[:id]
+    end
 
     def request(method, path, body = nil)
       uri = URI("#{@base_url}#{path}")

@@ -24,8 +24,8 @@ class FreshjotsTest < Minitest::Test
     Freshjots::Client.new(token: "mn_x")
   end
 
-  def test_version_is_pinned_to_0_2_0
-    assert_equal "0.2.0", Freshjots::VERSION
+  def test_version_is_pinned_to_0_3_0
+    assert_equal "0.3.0", Freshjots::VERSION
   end
 
   def test_client_requires_a_token
@@ -87,5 +87,84 @@ class FreshjotsTest < Minitest::Test
     assert_equal :post, method
     assert_equal "/notes/by-filename/deploys/append", path
     assert_equal({ text: "shipped" }, body)
+  end
+
+  def test_notes_builds_query_from_params
+    c = client
+    calls = stub_request(c, { notes: [] })
+    c.notes(sort: "created", folder_id: "none", limit: 5, offset: 10)
+    path = calls[0][1]
+    assert_match(%r{\A/notes\?}, path)
+    assert_match(/sort=created/, path)
+    assert_match(/folder_id=none/, path)
+    assert_match(/limit=5/, path)
+    assert_match(/offset=10/, path)
+  end
+
+  def test_notes_with_no_params_hits_bare_path
+    c = client
+    calls = stub_request(c, { notes: [] })
+    c.notes
+    assert_equal "/notes", calls[0][1]
+  end
+
+  def test_note_by_id
+    c = client
+    calls = stub_request(c, { id: 42, plain_body: "b" })
+    note = c.note_by_id(42)
+    assert_equal 42, note[:id]
+    assert_equal :get, calls[0][0]
+    assert_equal "/notes/42", calls[0][1]
+  end
+
+  def test_delete_by_id
+    c = client
+    calls = stub_request(c, {})
+    assert_equal true, c.delete(42)
+    assert_equal :delete, calls[0][0]
+    assert_equal "/notes/42", calls[0][1]
+  end
+
+  def test_delete_by_filename_resolves_to_id
+    c = client
+    calls = stub_request(c, { id: 7, filename: "n" })
+    c.delete("my-note")
+    assert_equal :get, calls[0][0] # resolve via by-filename
+    assert_equal "/notes/by-filename/my-note", calls[0][1]
+    assert_equal :delete, calls[1][0]
+    assert_equal "/notes/7", calls[1][1]
+  end
+
+  def test_move_to_folder_id
+    c = client
+    calls = stub_request(c, { id: 1, folder_id: 3 })
+    c.move(1, folder: 3)
+    assert_equal :post, calls[0][0]
+    assert_equal "/notes/1/move", calls[0][1]
+    assert_equal({ folder_id: 3 }, calls[0][2])
+  end
+
+  def test_move_to_root_sends_null_folder
+    c = client
+    calls = stub_request(c, { id: 1 })
+    c.move(1, folder: nil)
+    assert_equal({ folder_id: nil }, calls[0][2])
+  end
+
+  def test_move_resolves_folder_name
+    c = client
+    calls = stub_request(c, { folders: [{ id: 3, name: "Work" }] })
+    c.move(5, folder: "Work")
+    assert_equal :get, calls[0][0] # resolve /folders first
+    assert_equal "/folders", calls[0][1]
+    move = calls.last
+    assert_equal "/notes/5/move", move[1]
+    assert_equal({ folder_id: 3 }, move[2])
+  end
+
+  def test_folders_unwraps
+    c = client
+    stub_request(c, { folders: [{ id: 3, name: "Work" }] })
+    assert_equal "Work", c.folders.first[:name]
   end
 end
