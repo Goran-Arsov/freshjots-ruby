@@ -75,10 +75,11 @@ Stable error codes: `unauthenticated`, `forbidden`, `not_found`,
 ## Auth
 
 Mint a token at <https://freshjots.com/settings/api_tokens> (Pro or
-Team tier required). Set it once:
+Team tier required). Set it once, persisted for every new shell
+(macOS defaults to zsh; use `~/.bashrc` on bash):
 
 ```sh
-export FRESHJOTS_TOKEN=<your-token>
+echo 'export FRESHJOTS_TOKEN=<your-token>' >> ~/.zshrc && source ~/.zshrc
 ```
 
 Or pass explicitly:
