@@ -85,7 +85,7 @@ echo 'export FRESHJOTS_TOKEN=<your-token>' >> ~/.zshrc && source ~/.zshrc
 Or pass explicitly:
 
 ```ruby
-Freshjots::Client.new(token: "fjk_…")
+Freshjots::Client.new(token: "mn_…")
 ```
 
 ## License
