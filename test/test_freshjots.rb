@@ -24,8 +24,8 @@ class FreshjotsTest < Minitest::Test
     Freshjots::Client.new(token: "mn_x")
   end
 
-  def test_version_is_pinned_to_1_0_1
-    assert_equal "1.0.1", Freshjots::VERSION
+  def test_version_is_pinned_to_1_0_2
+    assert_equal "1.0.2", Freshjots::VERSION
   end
 
   def test_client_requires_a_token
