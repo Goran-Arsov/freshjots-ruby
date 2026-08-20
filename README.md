@@ -50,7 +50,35 @@ client.delete("old-note")
 client.folders.each { |f| puts "#{f[:id]}\t#{f[:name]}" }
 ```
 
-Client methods: `notes(sort:, folder_id:, limit:, offset:)`, `note(filename)`, `note_by_id(id)`, `create(title:, body:)`, `append(filename, text)`, `delete(id_or_filename)`, `move(id_or_filename, folder:)`, and `folders`. `note`/`note_by_id`/`create` return the note hash directly (no `{ note: … }` wrapper); `notes` and `folders` return arrays. For `notes`, `sort` is `created|updated|appended` and `folder_id` may be a folder id or `"none"` (un-foldered only).
+Client methods: `notes(sort:, folder_id:, limit:, offset:)`, `note(filename)`, `note_by_id(id)`, `create(title:, body:, client_encrypted:)`, `append(filename, text, client_encrypted:)`, `delete(id_or_filename)`, `move(id_or_filename, folder:)`, and `folders`. Client-side crypto: `Freshjots.encrypt(text, passphrase)` / `Freshjots.decrypt(token, passphrase)` (see [Encryption](#encryption)). `note`/`note_by_id`/`create` return the note hash directly (no `{ note: … }` wrapper); `notes` and `folders` return arrays. For `notes`, `sort` is `created|updated|appended` and `folder_id` may be a folder id or `"none"` (un-foldered only).
+
+## Encryption
+
+Keep notes the server can't read: encrypt locally with your own passphrase,
+store the ciphertext, decrypt locally on read. Built in on Ruby's stdlib
+`openssl` (no gem dependencies), and interoperable with the JS and Python
+clients.
+
+```ruby
+require "freshjots"
+
+client = Freshjots::Client.new
+pw = ENV.fetch("FRESHJOTS_PASSPHRASE")
+
+# Store an encrypted note: encrypt the body, flag it client_encrypted.
+client.create(title: "Recovery codes", body: Freshjots.encrypt("1234-5678", pw), client_encrypted: true)
+
+# Read it back and decrypt locally.
+puts Freshjots.decrypt(client.note("recovery-codes")[:plain_body], pw)
+```
+
+The format is `fj1` (AES-256-CBC + HMAC-SHA256, PBKDF2-HMAC-SHA256), interoperable
+with the JS, Python, MCP, and shell (`brew`) clients. You hold the only key —
+Fresh Jots never receives it and **cannot recover the note if you lose it**, so
+back the passphrase up somewhere safe. Encryption is per-note and personal-only
+(not team notes); the title and metadata stay in the clear, so keep secrets out
+of the title. `Freshjots.decrypt` raises `Freshjots::EncryptionError` on a wrong
+passphrase. See <https://freshjots.com/encrypted-notes>.
 
 ## Errors
 

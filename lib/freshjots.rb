@@ -5,6 +5,7 @@ require "net/http"
 require "uri"
 
 require_relative "freshjots/version"
+require_relative "freshjots/crypto"
 
 # Tiny client for the Fresh Jots API (https://freshjots.com/docs).
 #
@@ -71,18 +72,27 @@ module Freshjots
     # (the by-filename endpoint creates it with that exact name on first
     # call). Returns the created note hash (top level); read [:filename]
     # for the server-derived stream name.
-    def create(title:, body: "")
+    # Pass client_encrypted: true to mark the note as a client-encrypted note
+    # — body is opaque ciphertext you produced with Freshjots.encrypt; the
+    # server stores it verbatim and never reads it. Personal accounts only.
+    def create(title:, body: "", client_encrypted: false)
       if title.nil? || title.to_s.empty?
         raise ArgumentError,
               "create requires a title — the API derives the filename from it. " \
               "For a note addressable by an exact filename, use append."
       end
-      payload = { note: { title: title, plain_body: body, format: "plain" } }
-      request(:post, "/notes", payload)
+      note = { title: title, plain_body: body, format: "plain" }
+      note[:client_encrypted] = true if client_encrypted
+      request(:post, "/notes", { note: note })
     end
 
-    def append(filename, text)
-      request(:post, "/notes/by-filename/#{escape(filename)}/append", { text: text })
+    # On first-touch creation, pass client_encrypted: true to open the stream
+    # as a client-encrypted note (send one ciphertext line per append).
+    # Ignored once the note exists.
+    def append(filename, text, client_encrypted: false)
+      body = { text: text }
+      body[:client_encrypted] = true if client_encrypted
+      request(:post, "/notes/by-filename/#{escape(filename)}/append", body)
       true
     end
 
