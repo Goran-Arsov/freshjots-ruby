@@ -97,8 +97,9 @@ module Freshjots
     end
 
     # Delete a note. Accepts a numeric id or a filename (resolved to its
-    # id via the by-filename lookup). Locked (append-only) notes are
-    # refused by the API with note_locked. Returns true on success.
+    # id via the by-filename lookup). Works on any note, including locked
+    # (append-only) ones — the lock freezes content, not deletability.
+    # Returns true on success.
     def delete(id_or_filename)
       request(:delete, "/notes/#{resolve_note_id(id_or_filename)}")
       true
